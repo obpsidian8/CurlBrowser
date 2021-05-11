@@ -68,9 +68,9 @@ class CurlRequests:
         """
         for key, value in self.headers_dict.items():
             if not self.curl_headers:
-                self.curl_headers = f"-H '{key}: {value}' "
+                self.curl_headers = f'-H "{key}: {value}" '
             else:
-                self.curl_headers = f"{self.curl_headers}  -H '{key}: {value}' "
+                self.curl_headers = f'{self.curl_headers}  -H "{key}: {value}" '
 
         return self.curl_headers
 
@@ -81,11 +81,11 @@ class CurlRequests:
         """
         for key, value in self.cookies_dict.items():
             if not self.cookies_as_single_str:
-                self.cookies_as_single_str = f"{key}={value}"
+                self.cookies_as_single_str = f'{key}={value}'
             else:
-                self.cookies_as_single_str = f"{self.cookies_as_single_str}; {key}={value}"
+                self.cookies_as_single_str = f'{self.cookies_as_single_str}; {key}={value}'
 
-        self.curl_cookie_header = f" -H 'cookie: {self.cookies_as_single_str}' "
+        self.curl_cookie_header = f' -H "cookie: {self.cookies_as_single_str}" '
         return self.curl_cookie_header
 
     def build_body_data(self, data):
@@ -164,14 +164,15 @@ class CurlRequests:
             specified_method_flag = ""
 
         # If data needs to be sent, with request, add it to the request
+        request_url = f'\"{request_url}\"'
         if data:
             body = self.build_body_data(data)
-            full_cmd = f"{curl_command_prefix} {request_url} {specified_method_flag} {self.curl_headers} {self.curl_cookie_header} {body}"
+            full_cmd = f'{curl_command_prefix} {request_url} {specified_method_flag} {self.curl_headers} {self.curl_cookie_header} {body}'
         elif form_data:
             form_data = self.build_form_data(form_data, url_encode_data)
-            full_cmd = f"{curl_command_prefix} {request_url} {specified_method_flag} {self.curl_headers} {self.curl_cookie_header} {form_data}"
+            full_cmd = f'{curl_command_prefix} {request_url} {specified_method_flag} {self.curl_headers} {self.curl_cookie_header} {form_data}'
         else:
-            full_cmd = f"{curl_command_prefix} {request_url} {specified_method_flag} {self.curl_headers} {self.curl_cookie_header}"
+            full_cmd = f'{curl_command_prefix} {request_url} {specified_method_flag} {self.curl_headers} {self.curl_cookie_header}'
 
         # Add compression if need. Never really used
         if add_compression:
@@ -180,7 +181,7 @@ class CurlRequests:
         print(f"INFO: Full command formed:\n\t{full_cmd}\n\nINFO: Ready to send")
         return full_cmd
 
-    def send_curl_request(self, request_url, data=None, add_compression=False, proxy=None, specified_method=None, form_data=None, page_redirects=False, include=False, verbose=True, url_encode_data=False, download_file=False):
+    def send_curl_request(self, request_url, data=None, add_compression=False, proxy=None, specified_method=None, form_data=None, page_redirects=False, include=False, verbose=True, url_encode_data=False, download_file=False, timeout=8, shell_needed=False):
 
         """
         Will build and send a curl request to the specified request url using the curl_headers and dict supplied
@@ -198,13 +199,15 @@ class CurlRequests:
         """
         full_cmd = self.build_full_curl_cmd(request_url, data, add_compression, proxy, specified_method, form_data, page_redirects, include, url_encode_data, download_file)
         args = shlex.split(full_cmd)
-        print(f"INFO: Sending command")
+        print(f"INFO: Sending command as args:\n\t{args}\n\n")
         response = {}
         try:
             if download_file:
-                response = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                # No timeout enforced for downloads
+                response = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell_needed)
             else:
-                response = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=8)
+                # For getting simple html or json response, a default timeout of 8 seconds is enforced
+                response = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout, shell=shell_needed)
 
             stderr = response.stderr
             stdout = response.stdout
